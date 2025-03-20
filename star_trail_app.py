@@ -23,6 +23,11 @@ class StarTrailGenerator:
         self.setup_ui()
     
     def setup_ui(self):
+        # Set theme for better appearance
+        style = ttk.Style()
+        if 'clam' in style.theme_names():
+            style.theme_use('clam')
+            
         # Create main frame
         main_frame = ttk.Frame(self.root, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -113,43 +118,53 @@ class StarTrailGenerator:
         if img is None:
             return
             
-        # Resize for preview while maintaining aspect ratio
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-        
-        if canvas_width <= 1 or canvas_height <= 1:
-            # Canvas not yet realized, retry later
-            self.root.after(100, lambda: self.update_preview(img))
-            return
+        try:
+            # Make a copy to avoid any threading issues
+            img = img.copy()
             
-        img_height, img_width = img.shape[:2]
-        
-        # Calculate scaling factor
-        scale = min(canvas_width / img_width, canvas_height / img_height)
-        
-        # Resize image for display
-        if scale < 1:
-            new_width = int(img_width * scale)
-            new_height = int(img_height * scale)
-            resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
-        else:
-            resized = img.copy()
-        
-        # Convert from BGR to RGB for PIL
-        rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        
-        # Convert to PhotoImage
-        pil_img = Image.fromarray(rgb_image)
-        self.preview_image = ImageTk.PhotoImage(image=pil_img)
-        
-        # Clear canvas and display new image
-        self.canvas.delete("all")
-        
-        # Center the image
-        x_pos = (canvas_width - self.preview_image.width()) // 2
-        y_pos = (canvas_height - self.preview_image.height()) // 2
-        
-        self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=self.preview_image)
+            # Resize for preview while maintaining aspect ratio
+            canvas_width = self.canvas.winfo_width()
+            canvas_height = self.canvas.winfo_height()
+            
+            # Use default size if canvas not yet sized
+            if canvas_width <= 1 or canvas_height <= 1:
+                canvas_width = 640
+                canvas_height = 480
+            
+            img_height, img_width = img.shape[:2]
+            
+            # Calculate scaling factor
+            scale = min(canvas_width / img_width, canvas_height / img_height)
+            
+            # Resize image for display
+            if scale < 1:
+                new_width = int(img_width * scale)
+                new_height = int(img_height * scale)
+                resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            else:
+                new_width = int(img_width * scale)
+                new_height = int(img_height * scale)
+                resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+            
+            # Convert from BGR to RGB for PIL
+            rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            
+            # Convert to PhotoImage
+            pil_img = Image.fromarray(rgb_image)
+            self.preview_image = ImageTk.PhotoImage(image=pil_img)
+            
+            # Clear canvas and display new image
+            self.canvas.delete("all")
+            
+            # Center the image
+            x_pos = (canvas_width - self.preview_image.width()) // 2
+            y_pos = (canvas_height - self.preview_image.height()) // 2
+            
+            self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=self.preview_image)
+            
+        except Exception as e:
+            print(f"Preview update error: {str(e)}")
+            # Don't let preview errors crash the application
     
     def process_images(self):
         if not self.image_files:
@@ -174,6 +189,10 @@ class StarTrailGenerator:
             # Read the first image as base
             base_img = cv2.imread(self.image_files[0]).astype(np.float32)
             self.progress['value'] = 1
+            
+            # Update preview with first image
+            first_img_preview = cv2.imread(self.image_files[0])
+            self.root.after(0, lambda: self.update_preview(first_img_preview))
             self.root.update_idletasks()
             
             # Stack images using maximum pixel value
@@ -186,6 +205,12 @@ class StarTrailGenerator:
                 progress_value = int((i / total_images) * 100)
                 self.progress['value'] = progress_value
                 self.status_var.set(f"Processing image {i}/{total_images} ({progress_value}%)")
+                
+                # Update preview periodically (every 5 images or final image)
+                if i % 5 == 0 or i == len(self.image_files) - 1:
+                    current_preview = np.uint8(base_img.copy())
+                    self.root.after(0, lambda img=current_preview: self.update_preview(img))
+                
                 self.root.update_idletasks()
             
             # Convert back to 8-bit image format
@@ -195,7 +220,7 @@ class StarTrailGenerator:
             output_path = os.path.join(self.output_folder, self.image_filename.get())
             cv2.imwrite(output_path, self.final_image)
             
-            # Update preview
+            # Update preview with final image
             self.root.after(0, lambda: self.update_preview(self.final_image))
             
             # Create GIF
