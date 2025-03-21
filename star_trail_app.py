@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 class StarTrailGenerator:
     def __init__(self, root):
         self.root = root
-        self.root.title("Star Trail Generator")
+        self.root.title("Star Trail Generator v1.0.0")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
         
