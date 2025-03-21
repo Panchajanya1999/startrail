@@ -1,0 +1,117 @@
+name: Build and Release Star Trail Generator
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger the workflow when you push a tag that starts with 'v'
+  workflow_dispatch: # Allows manual triggering
+
+# Add permissions at the workflow level
+permissions:
+  contents: write  # Required for creating releases and uploading assets
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            output_name: StarTrailGenerator_Linux
+            artifact_name: star-trail-generator-linux
+          - os: windows-latest
+            output_name: StarTrailGenerator_Windows
+            artifact_name: star-trail-generator-windows
+          - os: macos-latest
+            output_name: StarTrailGenerator_macOS
+            artifact_name: star-trail-generator-macos
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk python3-opencv libgl1-mesa-glx
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Create icon directory (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        mkdir -p icons
+
+    - name: Create icon file (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir -p icons
+        echo "Creating placeholder icon file"
+        # Using a PowerShell approach to create a basic icon
+        # In a real project, you would include a proper icon file in your repo
+
+    - name: Build with PyInstaller (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
+        cd dist
+        powershell Compress-Archive -Path ${{ matrix.output_name }} -DestinationPath ${{ matrix.artifact_name }}.zip
+
+    - name: Build with PyInstaller (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
+        cd dist
+        zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}
+
+    - name: Build with PyInstaller (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
+        cd dist
+        zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/${{ matrix.artifact_name }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    # Add permissions explicitly for this job
+    permissions:
+      contents: write  # Required for creating releases
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          star-trail-generator-windows/star-trail-generator-windows.zip
+          star-trail-generator-macos/star-trail-generator-macos.zip
+          star-trail-generator-linux/star-trail-generator-linux.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
