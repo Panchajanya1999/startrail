@@ -1,6 +1,6 @@
 # Star Trail Generator
 
-![Star Trail Example](https://storage.panchajanya.dev/startrail/ss.png) <!-- Replace with actual star trail image -->
+![Star Trail Example](https://storage.panchajanya.dev/startrail/ss.png)
 
 A user-friendly desktop application for creating beautiful star trail images and timelapse GIFs from a series of night sky photographs.
 
@@ -9,6 +9,7 @@ A user-friendly desktop application for creating beautiful star trail images and
 - **Image Stacking:** Automatically combines multiple images to create stunning star trail effects
 - **GIF Creation:** Generates timelapses showing the movement of stars across the night sky
 - **Live Preview:** Watch your star trails form during processing
+- **RAW Support:** Processes Sony ARW (RAW) files with customizable processing options
 - **Simple Interface:** Easy-to-use GUI for photographers of all skill levels
 - **Cross-Platform:** Works on Windows, macOS, and Linux
 
@@ -16,7 +17,7 @@ A user-friendly desktop application for creating beautiful star trail images and
 
 ### Latest Release
 
-Download the latest pre-built application for your platform from the [Releases](https://github.com/panchajanya1999/startrail/releases) page.
+Download the latest pre-built application for your platform from the [Releases](https://github.com/yourusername/star-trail-generator/releases) page.
 
 ### Windows
 1. Download the `star-trail-generator-windows.zip` file
@@ -40,7 +41,7 @@ Download the latest pre-built application for your platform from the [Releases](
 ### Basic Workflow
 
 1. **Select Input Folder:** Click "Browse..." to select the folder containing your night sky images
-   - Supported formats: JPG, JPEG, PNG, TIF, TIFF
+   - Supported formats: JPG, JPEG, PNG, TIF, TIFF, ARW (Sony RAW)
    - Images should be sorted in chronological order (file names should sort correctly)
 
 2. **Choose Output Location:** 
@@ -49,6 +50,9 @@ Download the latest pre-built application for your platform from the [Releases](
 
 3. **Adjust Options:**
    - Set the GIF duration (in milliseconds) to control playback speed
+   - Configure RAW processing options:
+     - Use Camera White Balance: Uses the white balance settings from your camera
+     - No Auto Brightness: Disables automatic brightness adjustment for RAW files
 
 4. **Generate:** Click "Generate Star Trail" to start processing
    - The progress bar will show completion percentage
@@ -182,3 +186,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 *Happy stargazing!*
+

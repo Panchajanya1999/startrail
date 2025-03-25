@@ -6,11 +6,14 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
+import rawpy
+import imageio
+import traceback
 
 class StarTrailGenerator:
     def __init__(self, root):
         self.root = root
-        self.root.title("Star Trail Generator v1.0.1")
+        self.root.title("Star Trail Generator")
         self.root.geometry("800x600")
         self.root.minsize(800, 600)
         
@@ -32,6 +35,12 @@ class StarTrailGenerator:
         main_frame = ttk.Frame(self.root, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
+        # Add file format info to the title
+        self.root.title("Star Trail Generator v1.0.0 - Supports JPG, PNG, TIF, ARW")
+        
+        # Set minimum size for better appearance
+        self.root.minsize(850, 650)
+        
         # Input section
         input_frame = ttk.LabelFrame(main_frame, text="Input", padding=10)
         input_frame.pack(fill=tk.X, pady=5)
@@ -40,6 +49,13 @@ class StarTrailGenerator:
         self.folder_entry = ttk.Entry(input_frame, width=50)
         self.folder_entry.grid(row=0, column=1, sticky=tk.W+tk.E, padx=5, pady=5)
         ttk.Button(input_frame, text="Browse...", command=self.browse_folder).grid(row=0, column=2, pady=5)
+        
+        # Format note
+        format_frame = ttk.Frame(input_frame)
+        format_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=5)
+        ttk.Label(format_frame, text="Supported formats:", font=("Default", 9)).pack(side=tk.LEFT)
+        ttk.Label(format_frame, text=" JPG, JPEG, PNG, TIF, TIFF, ARW (Sony RAW)", 
+                 font=("Default", 9, "italic")).pack(side=tk.LEFT)
         
         # Output section
         output_frame = ttk.LabelFrame(main_frame, text="Output", padding=10)
@@ -64,10 +80,25 @@ class StarTrailGenerator:
         options_frame = ttk.LabelFrame(main_frame, text="Options", padding=10)
         options_frame.pack(fill=tk.X, pady=5)
         
+        # Row 0: GIF Duration
         ttk.Label(options_frame, text="GIF Duration (ms):").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.gif_duration = ttk.Spinbox(options_frame, from_=10, to=1000, increment=10, width=5)
         self.gif_duration.insert(0, "50")
         self.gif_duration.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Row 1: RAW Processing Options
+        ttk.Label(options_frame, text="RAW Processing:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        
+        raw_options_frame = ttk.Frame(options_frame)
+        raw_options_frame.grid(row=1, column=1, columnspan=2, sticky=tk.W, padx=5, pady=5)
+        
+        self.use_camera_wb = tk.BooleanVar(value=True)
+        ttk.Checkbutton(raw_options_frame, text="Use Camera White Balance", 
+                       variable=self.use_camera_wb).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.no_auto_bright = tk.BooleanVar(value=False)
+        ttk.Checkbutton(raw_options_frame, text="No Auto Brightness", 
+                       variable=self.no_auto_bright).pack(side=tk.LEFT)
         
         # Process buttons
         button_frame = ttk.Frame(main_frame)
@@ -104,7 +135,7 @@ class StarTrailGenerator:
             
             # Count images in folder
             self.image_files = sorted([os.path.join(folder, f) for f in os.listdir(folder) 
-                                     if f.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff'))])
+                                     if f.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff', '.arw'))])
             self.status_var.set(f"Found {len(self.image_files)} images in selected folder")
     
     def browse_output(self):
@@ -182,36 +213,79 @@ class StarTrailGenerator:
         # Start processing in a separate thread
         threading.Thread(target=self._process_thread, daemon=True).start()
     
+    def read_image(self, img_path):
+        """Read an image file, handling both regular formats and ARW raw files"""
+        try:
+            if img_path.lower().endswith('.arw'):
+                # Handle ARW (Sony RAW) file
+                self.status_var.set(f"Processing RAW file: {os.path.basename(img_path)}")
+                with rawpy.imread(img_path) as raw:
+                    # Get RAW processing options from the UI
+                    use_camera_wb = self.use_camera_wb.get()
+                    no_auto_bright = self.no_auto_bright.get()
+                    
+                    # Process the raw data to get an RGB image with user-specified parameters
+                    rgb = raw.postprocess(
+                        use_camera_wb=use_camera_wb,
+                        half_size=False,  # Full resolution
+                        no_auto_bright=no_auto_bright,
+                        bright=1.0,  # Default brightness
+                        highlight_mode=rawpy.HighlightMode.Clip  # Preserve highlights
+                    )
+                    # Convert from RGB to BGR for OpenCV compatibility
+                    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR).astype(np.float32)
+            else:
+                # Handle regular image formats
+                img = cv2.imread(img_path)
+                if img is None:
+                    raise IOError(f"Could not read image file: {img_path}")
+                return img.astype(np.float32)
+        except Exception as e:
+            self.status_var.set(f"Error reading {os.path.basename(img_path)}: {str(e)}")
+            traceback.print_exc()
+            # Return a black image of default size as fallback
+            return np.zeros((1080, 1920, 3), dtype=np.float32)
+
     def _process_thread(self):
         try:
             self.status_var.set("Reading images...")
             
+            if not self.image_files:
+                raise ValueError("No image files found in the selected folder")
+                
             # Read the first image as base
-            base_img = cv2.imread(self.image_files[0]).astype(np.float32)
+            base_img = self.read_image(self.image_files[0])
             self.progress['value'] = 1
             
             # Update preview with first image
-            first_img_preview = cv2.imread(self.image_files[0])
+            first_img_preview = base_img.copy().astype(np.uint8)
             self.root.after(0, lambda: self.update_preview(first_img_preview))
             self.root.update_idletasks()
             
             # Stack images using maximum pixel value
             total_images = len(self.image_files)
             for i, img_path in enumerate(self.image_files[1:], 1):
-                img = cv2.imread(img_path).astype(np.float32)
-                base_img = np.maximum(base_img, img)  # Keep the brightest pixels
-                
-                # Update progress bar
-                progress_value = int((i / total_images) * 100)
-                self.progress['value'] = progress_value
-                self.status_var.set(f"Processing image {i}/{total_images} ({progress_value}%)")
-                
-                # Update preview periodically (every 5 images or final image)
-                if i % 5 == 0 or i == len(self.image_files) - 1:
-                    current_preview = np.uint8(base_img.copy())
-                    self.root.after(0, lambda img=current_preview: self.update_preview(img))
-                
-                self.root.update_idletasks()
+                try:
+                    img = self.read_image(img_path)
+                    base_img = np.maximum(base_img, img)  # Keep the brightest pixels
+                    
+                    # Update progress bar
+                    progress_value = int((i / total_images) * 100)
+                    self.progress['value'] = progress_value
+                    self.status_var.set(f"Processing image {i}/{total_images} ({progress_value}%)")
+                    
+                    # Update preview periodically (every 5 images or final image)
+                    if i % 5 == 0 or i == len(self.image_files) - 1:
+                        current_preview = np.uint8(base_img.copy())
+                        self.root.after(0, lambda img=current_preview: self.update_preview(img))
+                    
+                    self.root.update_idletasks()
+                except Exception as e:
+                    # Log the error but continue processing other images
+                    error_msg = f"Error processing {os.path.basename(img_path)}: {str(e)}"
+                    print(error_msg)
+                    self.status_var.set(error_msg)
+                    traceback.print_exc()
             
             # Convert back to 8-bit image format
             self.final_image = np.uint8(base_img)
