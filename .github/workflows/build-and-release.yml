@@ -42,7 +42,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-tk python3-opencv libgl1-mesa-glx libraw-dev
+        sudo apt-get install -y python3-tk python3-opencv libgl1 libglx-mesa0 libraw-dev
 
     - name: Install Python dependencies
       run: |
