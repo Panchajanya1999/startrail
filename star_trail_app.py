@@ -92,11 +92,11 @@ class StarTrailGenerator:
         raw_options_frame = ttk.Frame(options_frame)
         raw_options_frame.grid(row=1, column=1, columnspan=2, sticky=tk.W, padx=5, pady=5)
         
-        self.use_camera_wb = tk.BooleanVar(value=True)
+        self.use_camera_wb = tk.BooleanVar(value=False)
         ttk.Checkbutton(raw_options_frame, text="Use Camera White Balance", 
                        variable=self.use_camera_wb).pack(side=tk.LEFT, padx=(0, 10))
         
-        self.no_auto_bright = tk.BooleanVar(value=False)
+        self.no_auto_bright = tk.BooleanVar(value=True)
         ttk.Checkbutton(raw_options_frame, text="No Auto Brightness", 
                        variable=self.no_auto_bright).pack(side=tk.LEFT)
         
