@@ -42,7 +42,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-tk python3-opencv libgl1 libglx-mesa0 libraw-dev
+        sudo apt-get install -y python3-tk python3-opencv libgl1 libglx-mesa0 libraw-dev libheif-dev
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew update
+        brew install libraw libheif
 
     - name: Install Python dependencies
       run: |
@@ -51,21 +57,18 @@ jobs:
         pip install pyinstaller
 
     - name: Set up icons directory and placeholder icons
+      shell: bash
       run: |
         mkdir -p icons
         echo "Creating placeholder icon files"
-        
-        # Create an empty file as placeholder for icon.ico (Windows)
         touch icons/icon.ico
-        
-        # Create an empty file as placeholder for icon.icns (macOS)
         touch icons/icon.icns
-        
-        # Copy to root directory
         cp icons/icon.ico icon.ico || true
         cp icons/icon.icns icon.icns || true
 
-    - name: Modify spec file for icons
+    - name: Modify spec file for icons (Linux/macOS)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      shell: bash
       run: |
         # Backup the original spec file
         cp star_trail_generator.spec star_trail_generator.spec.bak
@@ -80,16 +83,34 @@ jobs:
         
         cat star_trail_generator.spec
 
+    - name: Modify spec file for icons (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        # Backup the original spec file
+        Copy-Item -Path star_trail_generator.spec -Destination star_trail_generator.spec.bak
+        
+        # Check if icons exist
+        if ((Test-Path "icon.ico") -and (Test-Path "icon.icns")) {
+          Write-Host "Using placeholder icons"
+        } else {
+          # PowerShell version of sed command
+          (Get-Content star_trail_generator.spec) -replace 'icon=.*,', 'icon=None,' | Set-Content star_trail_generator.spec
+        }
+        
+        Get-Content star_trail_generator.spec
+
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
+      shell: bash
       run: |
         pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
         cd dist
         powershell Compress-Archive -Path ${{ matrix.output_name }} -DestinationPath ${{ matrix.artifact_name }}.zip
-      shell: bash
 
     - name: Build with PyInstaller (macOS)
       if: matrix.os == 'macos-latest'
+      shell: bash
       run: |
         # On macOS, we need to be careful about the BUNDLE step
         # Try with normal spec file first, fall back to simpler build if that fails
@@ -98,15 +119,14 @@ jobs:
         
         cd dist
         zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}
-      shell: bash
 
     - name: Build with PyInstaller (Linux)
       if: matrix.os == 'ubuntu-latest'
+      shell: bash
       run: |
         pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
         cd dist
         zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}
-      shell: bash
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
