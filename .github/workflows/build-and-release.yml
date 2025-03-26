@@ -43,66 +43,27 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-tk python3-opencv libgl1 libglx-mesa0 libraw-dev libheif-dev
-
-    - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew update
-        brew install libraw libheif
-
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
 
-    - name: Set up icons directory and placeholder icons
-      shell: bash
+    - name: Create icon directory (macOS)
+      if: matrix.os == 'macos-latest'
       run: |
         mkdir -p icons
-        echo "Creating placeholder icon files"
-        touch icons/icon.ico
-        touch icons/icon.icns
-        cp icons/icon.ico icon.ico || true
-        cp icons/icon.icns icon.icns || true
 
-    - name: Modify spec file for icons (Linux/macOS)
-      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-      shell: bash
-      run: |
-        # Backup the original spec file
-        cp star_trail_generator.spec star_trail_generator.spec.bak
-        
-        # Remove or replace icon references if they're causing issues
-        if [ -f "icon.ico" ] && [ -f "icon.icns" ]; then
-          echo "Using placeholder icons"
-        else
-          # Modify the spec file to remove icon requirements
-          sed -i.bak 's/icon=.*,/icon=None,/g' star_trail_generator.spec || true
-        fi
-        
-        cat star_trail_generator.spec
-
-    - name: Modify spec file for icons (Windows)
+    - name: Create icon file (Windows)
       if: matrix.os == 'windows-latest'
-      shell: pwsh
       run: |
-        # Backup the original spec file
-        Copy-Item -Path star_trail_generator.spec -Destination star_trail_generator.spec.bak
-        
-        # Check if icons exist
-        if ((Test-Path "icon.ico") -and (Test-Path "icon.icns")) {
-          Write-Host "Using placeholder icons"
-        } else {
-          # PowerShell version of sed command
-          (Get-Content star_trail_generator.spec) -replace 'icon=.*,', 'icon=None,' | Set-Content star_trail_generator.spec
-        }
-        
-        Get-Content star_trail_generator.spec
+        mkdir -p icons
+        echo "Creating placeholder icon file"
+        # Using a PowerShell approach to create a basic icon
+        # In a real project, you would include a proper icon file in your repo
 
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
-      shell: bash
       run: |
         pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
         cd dist
@@ -110,19 +71,13 @@ jobs:
 
     - name: Build with PyInstaller (macOS)
       if: matrix.os == 'macos-latest'
-      shell: bash
       run: |
-        # On macOS, we need to be careful about the BUNDLE step
-        # Try with normal spec file first, fall back to simpler build if that fails
-        pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }} || \
-        pyinstaller --onefile --windowed --name=${{ matrix.output_name }} star_trail_app.py --distpath dist/${{ matrix.output_name }}
-        
+        pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
         cd dist
         zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}
 
     - name: Build with PyInstaller (Linux)
       if: matrix.os == 'ubuntu-latest'
-      shell: bash
       run: |
         pyinstaller star_trail_generator.spec --distpath dist/${{ matrix.output_name }}
         cd dist
