@@ -1,8 +1,9 @@
 # Star Trail Generator
 
-![Star Trail Example](https://storage.panchajanya.dev/startrail/ss.png)
-
 A user-friendly desktop application for creating beautiful star trail images and timelapse GIFs from a series of night sky photographs.
+
+![Star Trail Home Page](https://storage.panchajanya.dev/startrail/ssnewi.png)
+![Star Trail Advanced Page](https://storage.panchajanya.dev/startrail/ssnewii.png)
 
 ## Features
 
@@ -59,6 +60,12 @@ Download the latest pre-built application for your platform from the [Releases](
    - Live preview will update to show your star trail forming
    - Final files will be saved to your selected output location
 
+![Star Trail Result - I](https://storage.panchajanya.dev/startrail/star_trail.jpg)
+Caption: A star trail image created using the Star Trail Generator (Sony A6700 + Sony PZ 16-50mm f/3.5-5.6 OSS | 16mm | f/3.5 | ISO 400 | 20s x 100)
+
+![Star Trail Result - II](https://storage.panchajanya.dev/startrail/star_trails_adobe.jpg)
+Caption: A star trail image (LR Edited) created using the Star Trail Generator (Sony A6700 + Sony PZ 16-50mm f/3.5-5.6 OSS | 16mm | f/3.5 | ISO 400 | 20s x 100)
+
 ### Tips for Best Results
 
 - Use a tripod and remote shutter to ensure images align properly
@@ -66,6 +73,8 @@ Download the latest pre-built application for your platform from the [Releases](
 - Take at least 30 images for smoother trails (100+ is ideal)
 - For best star trails, use exposure times of 15-30 seconds per image
 - Shoot on clear nights away from light pollution
+- Follow the rule of 500: divide 500 by your focal length to get the maximum exposure time before star trails appear.
+ [Rule of the 500](https://astrobackyard.com/the-500-rule/)
 
 ## Development
 
@@ -177,11 +186,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Star trail stacking algorithm based on astrophotography techniques
-- Built with Python, OpenCV, and Tkinter
 
 ---
 
