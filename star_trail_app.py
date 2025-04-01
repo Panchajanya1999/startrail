@@ -201,6 +201,7 @@ class StarTrailGenerator:
         self.dark_mode = tk.BooleanVar(value=False)
         self.status_var = tk.StringVar(value="Ready")
         self.generate_gif = tk.BooleanVar(value=False)
+        self.output_format = tk.StringVar(value="JPEG")
         
         # Set icon (placeholder)
         if platform.system() == "Windows":
@@ -233,7 +234,27 @@ class StarTrailGenerator:
         else:
             self.gif_filename.config(state="disabled")
             self.gif_duration.config(state="disabled")
-    
+
+    def update_filename_extension(self, event=None):
+        """Update the filename extension based on the selected output format"""
+        # Get current filename without extension
+        current_name = self.image_filename.get()
+        base_name = os.path.splitext(current_name)[0]
+        
+        # Get the new extension based on format
+        if self.output_format.get() == "JPEG":
+            extension = ".jpg"
+        elif self.output_format.get() == "TIFF":
+            extension = ".tiff"
+        elif self.output_format.get() == "DNG":
+            extension = ".dng"
+        else:
+            extension = ".jpg"  # Default to jpg
+        
+        # Update the filename with the new extension
+        self.image_filename.delete(0, tk.END)
+        self.image_filename.insert(0, base_name + extension)
+        
     def toggle_theme(self, *args):
         """Toggle between light and dark themes"""
         if not sv_ttk:
@@ -383,11 +404,25 @@ class StarTrailGenerator:
         # Image filename row
         image_file_frame = ttk.Frame(output_file_card)
         image_file_frame.pack(fill=tk.X, pady=5)
-        
+
         ttk.Label(image_file_frame, text="Image Filename:").pack(side=tk.LEFT)
         self.image_filename = ttk.Entry(image_file_frame)
-        self.image_filename.insert(0, "star_trail.jpg")
+        self.image_filename.insert(0, "star_trail")  # Just the base name, extension will be added
         self.image_filename.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
+
+        # Output format selection
+        format_frame = ttk.Frame(output_file_card)
+        format_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(format_frame, text="Output Format:").pack(side=tk.LEFT)
+
+        format_options = ["JPEG", "TIFF", "DNG"]
+        format_dropdown = ttk.Combobox(format_frame, textvariable=self.output_format, 
+                                      values=format_options, width=10, state="readonly")
+        format_dropdown.pack(side=tk.LEFT, padx=10)
+        format_dropdown.bind("<<ComboboxSelected>>", self.update_filename_extension)
+
+        ModernTooltip(format_dropdown, "Select output image format (all use 100% quality)")
         
         # GIF filename row
         gif_file_frame = ttk.Frame(output_file_card)
@@ -722,10 +757,39 @@ For best results, use a tripod and consistent camera settings for all source ima
             
             # Save the output image
             output_path = os.path.join(self.output_folder, self.image_filename.get())
-            cv2.imwrite(output_path, self.final_image)
             
             # Update preview with final image
             self.root.after(0, lambda: self.update_preview(self.final_image))
+
+            # Ensure the correct extension is added
+            chosen_format = self.output_format.get()
+            if chosen_format == "JPEG":
+                if not output_path.lower().endswith(('.jpg', '.jpeg')):
+                    output_path += '.jpg'
+                # Save as JPEG with 100% quality
+                cv2.imwrite(output_path, self.final_image, [cv2.IMWRITE_JPEG_QUALITY, 100])
+            elif chosen_format == "TIFF":
+                if not output_path.lower().endswith(('.tif', '.tiff')):
+                    output_path += '.tiff'
+                # Save as TIFF (16-bit for better quality)
+                final_img_16bit = np.uint16(self.final_image) * 256  # Convert 8-bit to 16-bit
+                cv2.imwrite(output_path, final_img_16bit)
+            elif chosen_format == "DNG":
+                if not output_path.lower().endswith('.dng'):
+                    output_path += '.dng'
+                # For DNG format, we need specialized handling
+                try:
+                    # Try to use imageio for DNG
+                    import imageio
+                    # Convert to RGB for proper DNG handling
+                    rgb_image = cv2.cvtColor(self.final_image, cv2.COLOR_BGR2RGB)
+                    imageio.imwrite(output_path, rgb_image)
+                except (ImportError, Exception) as e:
+                    # Fallback to TIFF if DNG handling fails
+                    output_path = output_path.replace('.dng', '.tiff')
+                    final_img_16bit = np.uint16(self.final_image) * 256
+                    cv2.imwrite(output_path, final_img_16bit)
+                    CustomNotification(self.root, f"DNG format failed, saved as TIFF instead. Error: {str(e)}", "warning")
             
             # Create GIF if enabled
             if self.generate_gif.get():
