@@ -185,7 +185,7 @@ class StarTrailGenerator:
     def __init__(self, root):
         self.root = root
         self.root.title("Star Trail Generator v1.0.2")
-        self.root.geometry("990x1080")
+        self.root.geometry("1920x1080")
         self.root.minsize(800, 600)
         
         self.image_folder = ""
