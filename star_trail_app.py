@@ -424,15 +424,6 @@ class StarTrailGenerator:
 
         ModernTooltip(format_dropdown, "Select output image format (all use 100% quality)")
         
-        # GIF filename row
-        gif_file_frame = ttk.Frame(output_file_card)
-        gif_file_frame.pack(fill=tk.X, pady=5)
-        
-        ttk.Label(gif_file_frame, text="GIF Filename:").pack(side=tk.LEFT)
-        self.gif_filename = ttk.Entry(gif_file_frame)
-        self.gif_filename.insert(0, "star_trail_timelapse.gif")
-        self.gif_filename.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
-        
         # Preview area card
         preview_card = ttk.Frame(main_tab, style="Card.TFrame", padding=15)
         preview_card.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
@@ -482,6 +473,15 @@ class StarTrailGenerator:
 
         # Bind trace to update control states
         self.generate_gif.trace_add("write", self.update_gif_controls)
+
+        # GIF Filename (add these lines)
+        gif_file_frame = ttk.Frame(gif_card)
+        gif_file_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(gif_file_frame, text="GIF Filename:").pack(side=tk.LEFT)
+        self.gif_filename = ttk.Entry(gif_file_frame)
+        self.gif_filename.insert(0, "star_trail_timelapse.gif")
+        self.gif_filename.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
 
         # GIF Duration
         duration_frame = ttk.Frame(gif_card)
