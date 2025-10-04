@@ -793,36 +793,66 @@ For best results, use a tripod and consistent camera settings for all source ima
             
             # Create GIF if enabled
             if self.generate_gif.get():
-                self.status_var.set("Creating GIF...")
+                self.root.after(0, lambda: self.status_var.set("Creating GIF..."))
                 gif_path = os.path.join(self.output_folder, self.gif_filename.get())
-                
+
                 try:
                     duration = int(self.gif_duration.get())
                 except ValueError:
                     duration = 50  # Default if invalid input
-                    
-                # Open all images with PIL and create GIF
+
+                # Define a reasonable max size for GIF frames to reduce memory usage
+                max_gif_dimension = 1920  # Maximum width or height
+
+                # Process images one at a time to reduce memory usage
                 pil_images = []
-                for img_path in self.image_files:
+                total_gif_images = len(self.image_files)
+
+                for idx, img_path in enumerate(self.image_files):
                     try:
-                        pil_images.append(Image.open(img_path))
+                        # Update status
+                        self.root.after(0, lambda i=idx: self.status_var.set(f"Processing GIF frame {i+1}/{total_gif_images}..."))
+
+                        # Open and resize image
+                        img = Image.open(img_path)
+
+                        # Resize if image is too large
+                        if max(img.size) > max_gif_dimension:
+                            ratio = max_gif_dimension / max(img.size)
+                            new_size = tuple(int(dim * ratio) for dim in img.size)
+                            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+                        # Convert to RGB if needed (for consistency)
+                        if img.mode != 'RGB':
+                            img = img.convert('RGB')
+
+                        pil_images.append(img)
+
                     except Exception as e:
-                        self.status_var.set(f"Warning: Could not open {os.path.basename(img_path)}: {str(e)}")
+                        self.root.after(0, lambda e=e, path=img_path:
+                            self.status_var.set(f"Warning: Could not open {os.path.basename(path)}: {str(e)}"))
                         continue
-                
+
                 if pil_images:
+                    self.root.after(0, lambda: self.status_var.set("Saving GIF..."))
                     pil_images[0].save(
-                        gif_path, 
-                        save_all=True, 
-                        append_images=pil_images[1:], 
-                        duration=duration, 
-                        loop=0
+                        gif_path,
+                        save_all=True,
+                        append_images=pil_images[1:],
+                        duration=duration,
+                        loop=0,
+                        optimize=False  # Disable optimization to speed up saving
                     )
-                    
-                    self.status_var.set(f"Completed! Files saved to {self.output_folder}")
+
+                    # Clean up memory
+                    for img in pil_images:
+                        img.close()
+                    pil_images.clear()
+
+                    self.root.after(0, lambda: self.status_var.set(f"Completed! Files saved to {self.output_folder}"))
                     CustomNotification(self.root, f"Star trail and GIF created successfully!", "success")
                 else:
-                    self.status_var.set("Error: No valid images found for GIF creation")
+                    self.root.after(0, lambda: self.status_var.set("Error: No valid images found for GIF creation"))
                     CustomNotification(self.root, "Could not create GIF: No valid images found", "error")
             else:
                 # Skip GIF creation
